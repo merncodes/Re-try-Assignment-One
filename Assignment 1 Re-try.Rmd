@@ -1,0 +1,95 @@
+---
+title: "Assignment 1 Re-try"
+author: "Marin H"
+date: "2023-02-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### https://github.com/merncodes
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##### Set-up
+```{r}
+library(tidyverse)   # load libraries necessary to do graphing and dplyr
+
+# create vectors for species, limb width, limb length and observer (of species measurements), then combine vectors in one dataframe. Numerical values for limb width and length were sampled from a uniform distribution. Save dataframe to a measurements.csv
+source("/Users/mh_mac/Documents/CLASSES/BIOL 432/Week 5/Re-try/DataGenerato2.R") 
+
+# overwrite original measurements.csv to add an additional limb volume column to the dataframe. Use pi*((0.5*(df$Limb_width))^2)*df$Limb_length – the formula for a cylinder's volume – to estimate limb volume
+source("/Users/mh_mac/Documents/CLASSES/BIOL 432/Week 5/Re-try/VolumeEstimator_2.R")
+
+df <- read.csv(file = 'measurements_2.csv')   # load modified .csv file
+```
+
+##### Sort data by species, then observer, then limb volume
+```{r}
+# use arrange() to specifically order data frame by species > observer > limb volume
+df_sorted <- print(arrange(df, species_names, Observer, Volume))
+```
+##### Average voume for each species
+```{r}
+# use pipe operator to perform successive commands, first use groupby() to organize the 100 rows by species types; then use summarise() to simultaneously create a new column and calculate the average limb volume for each species. Ultimately, this creates a tibble consisting of 5 rows. 
+df_average_volume <- print(df_sorted %>% 
+  group_by(species_names) %>%
+  summarise(Average_volume = mean(Volume)))
+```
+
+##### Estimated average limb volume by species with exclusion criteria
+```{r}
+# create a new data frame that includes both average limb volume AND average limb length
+df_average <- df_sorted %>% 
+  group_by(species_names) %>%
+  summarise(Average_volume = mean(Volume), Average_Limb_length = mean(Limb_length))
+
+# use a for loop to iterate through data frame to determine whether there is a limb length error or not. 
+for(count in 1:nrow(df_average)) {  # create a counter, iterate from the first row to the last in data frame
+  Average_Limb <- df_average[count, "Average_Limb_length" ]   # assign limb value for that iteration of count
+  Species <- df_average[count, "species_names"]   # assign species names for that iteration of count
+  Average_Volume <- df_average[count, "Average_volume"]   # assign volume value for that iteration of count
+  if(Average_Limb > 100 | Average_Limb < 1) {   # if the average limb is greater than 100 OR less than 1
+    print(paste(Species, "Error in limb size")) # then print error message
+  } else {                            
+    if(Average_Limb < 100 && Average_Limb > 1) {   # otherwise, if average limb is less than 100 AND greater
+      print(paste(Species, ":", Average_Volume))   # than 1, print species name : average volume
+    } 
+  }
+}
+```
+
+##### Table for the number of observations for each species/observer combination
+```{r}
+# use the table() function to determine how many times the specified parameters occur together, with the output displayed in a new column 'Count'
+df_count <- data.frame(table(df$species_names, df$Observer)) 
+colnames(df_count) <- c("Species Name", "Observer", "Count") # change names of columns to increase aesthetic 
+print(df_count)
+```
+
+##### Box-plot to compare volume distributions for each species
+```{r}
+# load in pre-constructed graphics design specifications 
+source("/Users/mh_mac/Documents/CLASSES/BIOL 432/theme_pub.R")
+
+# create a boxplot, reorder plots by increasing limb volume median. Change axis titles manually, but use theme_pub() for remaining visual alterations
+ggplot(df) +
+  geom_boxplot(aes(x=reorder(species_names, Volume, FUN = median), y = Volume, fill = species_names)) +
+  xlab("Species Names") +
+  ylab("Volume cm^3") +
+  theme_pub() 
+```
+
+##### Multi-panel frequency histogram of limb volume by species
+```{r}
+ggplot(df, aes(x=Volume)) +
+  geom_histogram(bins=30) +  # alter bin width for improved visuals
+  facet_wrap(vars(species_names), nrow = 3) +  # facet_wrap() to create a multi-panel output 
+  ylab('Count') + # alter y axis label
+  xlab('Limb Volume (cm^3) by Species') + # alter x axis label
+  theme_pub() # add pre-constructed design elements
+```
